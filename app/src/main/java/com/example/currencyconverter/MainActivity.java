@@ -31,14 +31,9 @@ public class MainActivity extends AppCompatActivity {
     private Button swapButton, datePickerButton;
     private TextView convertedAmount, selectedDateText;
     private String[] currencies = {"USD", "RUB", "EUR", "CNY"};
-    private String[] currencySymbols = {"$", "₽", "€", "¥"};
     private static final String API_KEY = "584f27e6f08aa7e33d907518";
     private String selectedDate = null;
 
-    Calendar calendar = Calendar.getInstance();
-    int currentYear = calendar.get(Calendar.YEAR);
-    int currentMonth = calendar.get(Calendar.MONTH);
-    int currentDay = calendar.get(Calendar.DAY_OF_MONTH);
     private Double currentRate = fetchFirstExchangeRate("USD", "RUB");
 
     @Override
@@ -70,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
         spinnerFromCurrency.setSelection(0);
         spinnerToCurrency.setSelection(1);
 
-        // Recalculate when currency is changed
         spinnerFromCurrency.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parentView, View view, int position, long id) {
@@ -93,11 +87,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Recalculate when input is changed
         inputAmount.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int start, int count, int after) {}
 
+            @SuppressLint("DefaultLocale")
             @Override
             public void onTextChanged(CharSequence charSequence, int start, int before, int count) {
                 String input = inputAmount.getText().toString();
@@ -129,12 +123,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isValidInput(String input) {
-        // Разрешаем цифры, знаки +, -, *, / и пробелы
         return Pattern.matches("[0-9+\\-*/.\\s]*", input);
     }
 
     private double evaluateExpression(String input) {
-        // Убираем пробелы из выражения
         input = input.replaceAll("\\s+", "");
 
         String[] tokens = input.split("(?=[+\\-*/])|(?<=[+\\-*/])");
@@ -149,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
             if (token.matches("[0-9.]+")) {
                 currentNumber = Double.parseDouble(token);
 
-                // Выполняем операцию в зависимости от последнего оператора
                 switch (lastOperator) {
                     case '+':
                         result += currentNumber;
@@ -193,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
             String toCurrency = spinnerToCurrency.getSelectedItem().toString();
 
             if (amount != 0) {
-                fetchExchangeRate(amount, fromCurrency, toCurrency, null);
+                fetchExchangeRate(amount, fromCurrency, toCurrency);
             }
         } catch (NumberFormatException e) {
             convertedAmount.setText("Введите корректную сумму!");
@@ -207,7 +198,7 @@ public class MainActivity extends AppCompatActivity {
         call = api.getLatestRates(API_KEY, fromCurrency);
         final Double[] firstRate = new Double[1];
 
-        call.enqueue(new Callback<ExchangeRateResponse>() {
+        call.enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<ExchangeRateResponse> call, Response<ExchangeRateResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -228,14 +219,13 @@ public class MainActivity extends AppCompatActivity {
         return firstRate[0];
     }
 
-    private void fetchExchangeRate(double amount, String fromCurrency, String toCurrency, String date) {
+    private void fetchExchangeRate(double amount, String fromCurrency, String toCurrency) {
         ExchangeRateAPI api = RetrofitInstance.getRetrofitInstance().create(ExchangeRateAPI.class);
         Call<ExchangeRateResponse> call;
 
         String apiPath;
         if (selectedDate == null) {
             call = api.getLatestRates(API_KEY, fromCurrency);
-            apiPath = String.format("v6/%s/latest/%s", API_KEY, fromCurrency);
         } else {
             String[] dateParts = selectedDate.split("-");
             call = api.getRatesByDate(
@@ -245,11 +235,9 @@ public class MainActivity extends AppCompatActivity {
                     Integer.parseInt(dateParts[1]),
                     Integer.parseInt(dateParts[2])
             );
-            apiPath = String.format("v6/%s/history/%s/%s/%s/%s",
-                    API_KEY, fromCurrency, dateParts[0], dateParts[1], dateParts[2]);
         }
 
-        call.enqueue(new Callback<ExchangeRateResponse>() {
+        call.enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<ExchangeRateResponse> call, Response<ExchangeRateResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -291,14 +279,13 @@ public class MainActivity extends AppCompatActivity {
         spinnerFromCurrency.setSelection(toIndex);
         spinnerToCurrency.setSelection(fromIndex);
 
-        // Update the result after swapping
         if (!inputAmount.getText().toString().isEmpty()) {
             String input = inputAmount.getText().toString();
             double amount = evaluateExpression(input);
             String fromCurrency = spinnerFromCurrency.getSelectedItem().toString();
             String toCurrency = spinnerToCurrency.getSelectedItem().toString();
             if (amount != 0) {
-                fetchExchangeRate(amount, fromCurrency, toCurrency, null);
+                fetchExchangeRate(amount, fromCurrency, toCurrency);
             }
         }
     }
